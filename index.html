@@ -6,7 +6,7 @@
     <title>คำนวณ 60/40</title>
     <meta
       name="description"
-      content="เว็บคำนวณส่วนลดโครงการ 60/40 โดยรัฐออก 60% สูงสุดวันละ 200 บาท"
+      content="เว็บคำนวณโครงการ 60/40 สำหรับเครื่องเดียวและหลายเครื่อง"
     >
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -17,71 +17,103 @@
           <p class="eyebrow">60 / 40 Calculator</p>
           <h1 id="page-title">คำนวณ 60/40</h1>
           <p>
-            กรอกช่องไหนก็ได้ ระบบคำนวณทันที<br>
-            เกิน 200 จะแจ้งยอดจ่ายเพิ่ม
+            เลือกเครื่องเดียวหรือหลายเครื่อง<br>
+            ระบบคำนวณยอดจ่ายให้ทันที
           </p>
         </div>
 
-        <form class="fields" autocomplete="off">
-          <label class="field" for="government">
-            <span class="label-text">รัฐออกให้ (60%)</span>
-            <span class="input-wrap">
-              <input
-                id="government"
-                name="government"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="0.01"
-                value="200"
-              >
-              <span>บาท</span>
-            </span>
-          </label>
-
-          <label class="field" for="customer">
-            <span class="label-text">เราต้องออก (40%)</span>
-            <span class="input-wrap">
-              <input
-                id="customer"
-                name="customer"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="0.01"
-                value="133.33"
-              >
-              <span>บาท</span>
-            </span>
-          </label>
-
-          <label class="field" for="total">
-            <span class="label-text">ราคาสินค้า</span>
-            <span class="input-wrap">
-              <input
-                id="total"
-                name="total"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="0.01"
-                value="333.33"
-              >
-              <span>บาท</span>
-            </span>
-          </label>
-        </form>
-
-        <div class="summary" aria-live="polite">
-          <div>
-            <span>สัดส่วนจริง</span>
-            <strong id="ratio">รัฐ 60% / เรา 40%</strong>
-          </div>
-          <div>
-            <span>สิทธิรัฐวันละ 200</span>
-            <strong id="cap-status">แตะเพดาน 200 บาท</strong>
-          </div>
+        <div class="tabs" role="tablist" aria-label="โหมดคำนวณ">
+          <button class="tab is-active" id="single-tab" type="button" role="tab" aria-selected="true" aria-controls="single-panel">
+            เครื่องเดียว
+          </button>
+          <button class="tab" id="multi-tab" type="button" role="tab" aria-selected="false" aria-controls="multi-panel">
+            หลายเครื่อง
+          </button>
         </div>
+
+        <section class="panel is-active" id="single-panel" role="tabpanel" aria-labelledby="single-tab">
+          <form class="fields" autocomplete="off">
+            <label class="field" for="government">
+              <span class="label-text">รัฐออกให้ (60%)</span>
+              <span class="input-wrap">
+                <input id="government" name="government" type="number" inputmode="decimal" min="0" step="0.01" value="200">
+                <span>บาท</span>
+              </span>
+            </label>
+
+            <label class="field" for="customer">
+              <span class="label-text">เราต้องออก (40%)</span>
+              <span class="input-wrap">
+                <input id="customer" name="customer" type="number" inputmode="decimal" min="0" step="0.01" value="133.33">
+                <span>บาท</span>
+              </span>
+            </label>
+
+            <label class="field" for="total">
+              <span class="label-text">ราคาสินค้า</span>
+              <span class="input-wrap">
+                <input id="total" name="total" type="number" inputmode="decimal" min="0" step="0.01" value="333.33">
+                <span>บาท</span>
+              </span>
+            </label>
+          </form>
+
+          <div class="summary" aria-live="polite">
+            <div>
+              <span>สัดส่วนจริง</span>
+              <strong id="ratio">รัฐ 60% / เรา 40%</strong>
+            </div>
+            <div>
+              <span>สิทธิรัฐวันละ 200</span>
+              <strong id="cap-status">แตะเพดาน 200 บาท</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="multi-panel" role="tabpanel" aria-labelledby="multi-tab" hidden>
+          <div class="multi-head">
+            <label class="field compact" for="multi-total">
+              <span class="label-text">ราคาสินค้า</span>
+              <span class="input-wrap">
+                <input id="multi-total" name="multi-total" type="number" inputmode="decimal" min="0" step="0.01" value="1000">
+                <span>บาท</span>
+              </span>
+            </label>
+
+            <div class="machine-actions" aria-label="จัดการจำนวนเครื่อง">
+              <button class="tool-button" id="remove-machine" type="button" aria-label="ลบเครื่อง">−</button>
+              <strong id="machine-count">3 เครื่อง</strong>
+              <button class="tool-button" id="add-machine" type="button" aria-label="เพิ่มเครื่อง">+</button>
+            </div>
+          </div>
+
+          <div class="machine-list" id="machine-list" aria-label="สิทธิที่เหลือแต่ละเครื่อง"></div>
+
+          <div class="multi-summary" aria-live="polite">
+            <div class="result-main">
+              <span>จ่ายเท่ากันเครื่องละ</span>
+              <strong id="equal-pay">133.33 บาท</strong>
+            </div>
+            <div class="result-grid">
+              <div>
+                <span>รัฐออกจริงรวม</span>
+                <strong id="multi-government">600 บาท</strong>
+              </div>
+              <div>
+                <span>เราจ่ายรวม</span>
+                <strong id="multi-customer">400 บาท</strong>
+              </div>
+              <div>
+                <span>จ่ายเพิ่มจากสิทธิ</span>
+                <strong id="multi-extra">0 บาท</strong>
+              </div>
+              <div>
+                <span>ใช้สิทธิไม่หมด</span>
+                <strong id="multi-unused">0 บาท</strong>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 

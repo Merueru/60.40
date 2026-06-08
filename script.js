@@ -2,6 +2,10 @@ const GOV_RATE = 0.6;
 const USER_RATE = 0.4;
 const GOV_CAP = 200;
 const EPSILON = 0.005;
+const STORAGE_KEY = "sixtyFortyCalculator.v1.1.latest";
+const DEFAULT_SINGLE_TOTAL = 333.33;
+const DEFAULT_MULTI_TOTAL = 1000;
+const DEFAULT_MACHINE_CAP = 200;
 
 const tabs = document.querySelectorAll(".tab");
 const panels = document.querySelectorAll(".panel");
@@ -24,7 +28,8 @@ const multiExtra = document.querySelector("#multi-extra");
 const multiUnused = document.querySelector("#multi-unused");
 
 let activeInput = null;
-let machines = [200, 200, 200];
+let singleMemory = { source: "total", value: "" };
+let machineCaps = ["", "", ""];
 
 function toNumber(value) {
   const parsed = Number.parseFloat(value);
@@ -44,6 +49,32 @@ function format(value) {
 
 function baht(value) {
   return `${format(value)} บาท`;
+}
+
+function loadSavedState() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveState() {
+  const activeTab = document.querySelector(".tab.is-active")?.id === "multi-tab" ? "multi" : "single";
+  const state = {
+    activeTab,
+    single: singleMemory,
+    multi: {
+      total: multiTotalInput.value.trim(),
+      caps: machineCaps,
+    },
+  };
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Keep calculations working even when storage is unavailable.
+  }
 }
 
 function formatPercent(value) {
@@ -80,6 +111,12 @@ function setValue(input, value) {
   }
 }
 
+function clearSingleValues() {
+  governmentInput.value = "";
+  customerInput.value = "";
+  totalInput.value = "";
+}
+
 function updateSingleSummary(values) {
   const governmentPercent = values.total > 0 ? (values.government / values.total) * 100 : 0;
   const customerPercent = values.total > 0 ? (values.customer / values.total) * 100 : 0;
@@ -97,8 +134,18 @@ function updateSingleSummary(values) {
   capStatus.textContent = `ยังเหลือ ${baht(GOV_CAP - values.government)}`;
 }
 
-function recalculateSingle(source) {
+function recalculateSingle(source, shouldSave = true) {
   activeInput = source;
+
+  if (source.value.trim() === "") {
+    clearSingleValues();
+    updateSingleSummary(splitFromTotal(DEFAULT_SINGLE_TOTAL));
+    singleMemory = { source: source.id, value: "" };
+    if (shouldSave) {
+      saveState();
+    }
+    return;
+  }
 
   const values = source === governmentInput
     ? splitFromGovernment(toNumber(source.value))
@@ -110,6 +157,10 @@ function recalculateSingle(source) {
   setValue(customerInput, values.customer);
   setValue(totalInput, values.total);
   updateSingleSummary(values);
+  singleMemory = { source: source.id, value: source.value.trim() };
+  if (shouldSave) {
+    saveState();
+  }
 }
 
 function transactionAtEqualPay(customerPay, cap) {
@@ -189,9 +240,13 @@ function calculateEqualPlan(total, caps) {
   };
 }
 
+function effectiveMachineCaps() {
+  return machineCaps.map((cap) => cap === "" ? DEFAULT_MACHINE_CAP : toNumber(cap));
+}
+
 function createMachineRows(plan) {
   machineList.innerHTML = "";
-  machines.forEach((cap, index) => {
+  machineCaps.forEach((cap, index) => {
     const row = plan.rows[index];
     const wrapper = document.createElement("div");
     wrapper.className = "machine-row";
@@ -202,7 +257,7 @@ function createMachineRows(plan) {
         <span>สิทธิที่เหลือ</span>
       </div>
       <label class="machine-cap">
-        <input class="machine-input" type="number" inputmode="decimal" min="0" step="0.01" value="${format(cap)}" data-index="${index}" aria-label="สิทธิที่เหลือเครื่อง ${index + 1}">
+        <input class="machine-input" type="number" inputmode="decimal" min="0" step="0.01" value="${cap}" placeholder="200" data-index="${index}" aria-label="สิทธิที่เหลือเครื่อง ${index + 1}">
         <span>บาท</span>
       </label>
       <div class="machine-meta">
@@ -229,7 +284,7 @@ function createMachineRows(plan) {
 }
 
 function syncMachineRows(plan) {
-  if (machineList.children.length !== machines.length) {
+  if (machineList.children.length !== machineCaps.length) {
     createMachineRows(plan);
     return;
   }
@@ -249,21 +304,22 @@ function syncMachineRows(plan) {
 }
 
 function recalculateMulti() {
-  const total = toNumber(multiTotalInput.value);
-  const caps = machines.map((cap) => Math.max(cap, 0));
+  const total = multiTotalInput.value.trim() === "" ? DEFAULT_MULTI_TOTAL : toNumber(multiTotalInput.value);
+  const caps = effectiveMachineCaps();
   const plan = calculateEqualPlan(total, caps);
 
-  machineCount.textContent = `${machines.length} เครื่อง`;
-  removeMachineButton.disabled = machines.length <= 1;
+  machineCount.textContent = `${machineCaps.length} เครื่อง`;
+  removeMachineButton.disabled = machineCaps.length <= 1;
   equalPay.textContent = baht(plan.perMachinePay);
   multiGovernment.textContent = baht(plan.totalGovernment);
   multiCustomer.textContent = baht(plan.totalCustomer);
   multiExtra.textContent = plan.extra > EPSILON
-    ? `${baht(plan.extra)} / เครื่องละ ${baht(plan.extra / machines.length)}`
+    ? `${baht(plan.extra)} / เครื่องละ ${baht(plan.extra / machineCaps.length)}`
     : "0 บาท";
   multiUnused.textContent = baht(plan.unused);
 
   syncMachineRows(plan);
+  saveState();
 }
 
 function switchTab(tabId) {
@@ -278,6 +334,7 @@ function switchTab(tabId) {
     panel.classList.toggle("is-active", isActive);
     panel.hidden = !isActive;
   });
+  saveState();
 }
 
 tabs.forEach((tab) => {
@@ -291,13 +348,18 @@ tabs.forEach((tab) => {
   input.addEventListener("input", () => recalculateSingle(input));
   input.addEventListener("blur", () => {
     activeInput = null;
+    if (input.value.trim() !== "") {
+      input.value = format(toNumber(input.value));
+    }
     recalculateSingle(input);
   });
 });
 
 multiTotalInput.addEventListener("input", recalculateMulti);
 multiTotalInput.addEventListener("blur", () => {
-  multiTotalInput.value = format(toNumber(multiTotalInput.value));
+  if (multiTotalInput.value.trim() !== "") {
+    multiTotalInput.value = format(toNumber(multiTotalInput.value));
+  }
   recalculateMulti();
 });
 
@@ -307,7 +369,7 @@ machineList.addEventListener("input", (event) => {
   }
 
   const index = Number.parseInt(event.target.dataset.index, 10);
-  machines[index] = toNumber(event.target.value);
+  machineCaps[index] = event.target.value.trim();
   recalculateMulti();
 });
 
@@ -317,26 +379,52 @@ machineList.addEventListener("blur", (event) => {
   }
 
   const index = Number.parseInt(event.target.dataset.index, 10);
-  machines[index] = toNumber(event.target.value);
-  event.target.value = format(machines[index]);
+  machineCaps[index] = event.target.value.trim() === "" ? "" : format(toNumber(event.target.value));
+  event.target.value = machineCaps[index];
   recalculateMulti();
 }, true);
 
 addMachineButton.addEventListener("click", () => {
-  machines.push(200);
+  machineCaps.push("");
   recalculateMulti();
 });
 
 removeMachineButton.addEventListener("click", () => {
-  if (machines.length > 1) {
-    machines.pop();
+  if (machineCaps.length > 1) {
+    machineCaps.pop();
     recalculateMulti();
   }
 });
 
-recalculateSingle(totalInput);
-recalculateMulti();
+function restoreState() {
+  const saved = loadSavedState();
+  const savedSingle = saved.single || {};
+  const savedMulti = saved.multi || {};
 
-if (window.location.hash === "#multi") {
-  switchTab("multi-tab");
+  if (Array.isArray(savedMulti.caps) && savedMulti.caps.length > 0) {
+    machineCaps = savedMulti.caps.map((cap) => cap === "" ? "" : format(toNumber(cap)));
+  }
+
+  if (typeof savedMulti.total === "string") {
+    multiTotalInput.value = savedMulti.total === "" ? "" : format(toNumber(savedMulti.total));
+  }
+
+  const singleSource = document.querySelector(`#${savedSingle.source || "total"}`) || totalInput;
+  if (typeof savedSingle.value === "string" && savedSingle.value !== "") {
+    singleSource.value = format(toNumber(savedSingle.value));
+    recalculateSingle(singleSource, false);
+  } else {
+    clearSingleValues();
+    updateSingleSummary(splitFromTotal(DEFAULT_SINGLE_TOTAL));
+  }
+
+  recalculateMulti();
+
+  if (saved.activeTab === "multi" || window.location.hash === "#multi") {
+    switchTab("multi-tab");
+  } else {
+    switchTab("single-tab");
+  }
 }
+
+restoreState();

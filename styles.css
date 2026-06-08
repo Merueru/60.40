@@ -183,6 +183,12 @@ h1 {
   letter-spacing: 0;
 }
 
+.input-wrap input::placeholder,
+.machine-cap input::placeholder {
+  color: rgba(99, 113, 104, 0.36);
+  opacity: 1;
+}
+
 .input-wrap span {
   color: var(--muted);
   font-size: 0.98rem;
